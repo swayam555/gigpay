@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gigpay-config
+data:
+  REDIS_HOST: redis
+  KAFKA_BOOTSTRAP: kafka:9092
+  DB_HOST: postgres
+  EARNINGS_URL: http://earnings-service:8101
+  LEDGER_URL: http://ledger-service:8102
+  EARNINGS_SERVICE_URL: http://earnings-service:8101
+  LEDGER_SERVICE_URL: http://ledger-service:8102
+  COACH_SERVICE_URL: http://coach-service:8103
+  # The mock bank lives inside ledger-service; point this at a real payout provider in production.
+  PROVIDER_URL: http://ledger-service:8102
+  AI_PROVIDER: none
+  JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=70 -XX:+ExitOnOutOfMemoryError"
+---
+# Demo values only: use a secret manager (External Secrets, Sealed Secrets, cloud CSI driver) in a real cluster.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: gigpay-secrets
+type: Opaque
+stringData:
+  JWT_SECRET: change-me-in-production-this-is-a-32+-byte-dev-secret
+  DB_USER: gigpay
+  DB_PASSWORD: gigpay
+  ADMIN_PASSWORD: gigpay
+  PROVIDER_WEBHOOK_SECRET: dev-provider-webhook-secret
+  AI_API_KEY: ""

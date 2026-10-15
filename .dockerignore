@@ -1,0 +1,9 @@
+**/target
+frontend
+k8s
+docs
+.git
+.github
+*.md
+e2e
+scripts

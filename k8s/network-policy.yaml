@@ -1,0 +1,56 @@
+# Services trust the X-User-* identity headers set by the gateway, so only the gateway (and
+# peer services, for the /internal/... APIs) may reach them. The ledger, where money moves,
+# accepts traffic only from the gateway, the coach (read-only tools) and itself (the mock
+# bank's webhooks).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: earnings-from-gateway-and-peers
+spec:
+  podSelector:
+    matchLabels: { app: earnings-service }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: app, operator: In, values: [gateway, earnings-service, ledger-service, coach-service] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ledger-from-gateway-coach-self
+spec:
+  podSelector:
+    matchLabels: { app: ledger-service }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchExpressions:
+              - { key: app, operator: In, values: [gateway, ledger-service, coach-service] }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: coach-from-gateway-only
+spec:
+  podSelector:
+    matchLabels: { app: coach-service }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { app: gateway } }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: data-tier-from-apps-only
+spec:
+  podSelector:
+    matchLabels: { tier: data }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector: { matchLabels: { tier: app } }
+        - podSelector: { matchLabels: { tier: data } }

@@ -1,0 +1,53 @@
+@import "tailwindcss";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+@theme {
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, SFMono-Regular, monospace;
+
+  /* Paper, ink and a forest/lime money palette. */
+  --color-paper: #f6f5f1;
+  --color-surface: #ffffff;
+  --color-ink: #0f1a14;
+  --color-ink-2: #3b4640;
+  --color-muted: #6b746e;
+  --color-line: #e4e2da;
+  --color-line-2: #d6d3c8;
+  --color-forest: #17402a;
+  --color-forest-2: #0f2e1e;
+  --color-lime: #c6f36d;
+  --color-lime-2: #b3e352;
+  --color-pos: #18794e;
+  --color-neg: #c2362b;
+  --color-warn: #a86a0c;
+  --color-info: #2f5bd3;
+
+  --radius-card: 14px;
+  --shadow-card: 0 1px 0 rgb(15 26 20 / 0.04), 0 1px 2px rgb(15 26 20 / 0.04);
+  --shadow-pop: 0 12px 32px -12px rgb(15 26 20 / 0.25), 0 2px 6px rgb(15 26 20 / 0.06);
+
+  --animate-shimmer: shimmer 1.4s linear infinite;
+  @keyframes shimmer { from { background-position: -200% 0 } to { background-position: 200% 0 } }
+}
+
+html { scroll-behavior: smooth; }
+body { @apply bg-paper text-ink antialiased; font-feature-settings: "ss01", "cv11"; }
+::selection { background: var(--color-lime); color: var(--color-forest-2); }
+
+.num { font-variant-numeric: tabular-nums; }
+.input {
+  @apply mt-1.5 w-full rounded-lg border border-line-2 bg-surface px-3 py-2.5 text-sm text-ink outline-none transition;
+  @apply placeholder:text-muted/70 focus:border-forest focus:ring-4 focus:ring-forest/10;
+}
+.label { @apply block text-[13px] font-medium text-ink-2; }
+.eyebrow { @apply font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted; }
+.skeleton {
+  @apply rounded-md;
+  background: linear-gradient(90deg, #ecebe5 0%, #f6f5f1 50%, #ecebe5 100%);
+  background-size: 200% 100%;
+  animation: var(--animate-shimmer);
+}
+.prose-coach strong { @apply font-semibold text-ink; }
+.focus-ring { @apply outline-none focus-visible:ring-4 focus-visible:ring-forest/15; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .skeleton { animation: none; } }

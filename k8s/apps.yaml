@@ -1,0 +1,336 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  labels: { app: gateway, tier: app }
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: { app: gateway }
+  template:
+    metadata:
+      labels: { app: gateway, tier: app }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "8080"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: gateway
+          image: ghcr.io/your-org/gigpay-gateway:1.0.0
+          ports: [{ containerPort: 8080, name: http }]
+          envFrom:
+            - configMapRef: { name: gigpay-config }
+            - secretRef: { name: gigpay-secrets }
+          env:
+            - { name: PORT, value: "8080" }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 250m, memory: 384Mi }
+            limits: { memory: 384Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: gateway
+spec:
+  selector: { app: gateway }
+  ports: [{ port: 8080, targetPort: http }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: gateway }
+---
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: earnings-service
+  labels: { app: earnings-service, tier: app }
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: { app: earnings-service }
+  template:
+    metadata:
+      labels: { app: earnings-service, tier: app }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "8101"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: earnings-service
+          image: ghcr.io/your-org/gigpay-earnings-service:1.0.0
+          ports: [{ containerPort: 8101, name: http }]
+          envFrom:
+            - configMapRef: { name: gigpay-config }
+            - secretRef: { name: gigpay-secrets }
+          env:
+            - { name: PORT, value: "8101" }
+            - { name: DB_NAME, value: earnings }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: earnings-service
+spec:
+  selector: { app: earnings-service }
+  ports: [{ port: 8101, targetPort: http }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: earnings-service
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: earnings-service }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: earnings-service
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: earnings-service }
+  minReplicas: 2
+  maxReplicas: 10
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 65 }
+---
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ledger-service
+  labels: { app: ledger-service, tier: app }
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: { app: ledger-service }
+  template:
+    metadata:
+      labels: { app: ledger-service, tier: app }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "8102"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: ledger-service
+          image: ghcr.io/your-org/gigpay-ledger-service:1.0.0
+          ports: [{ containerPort: 8102, name: http }]
+          envFrom:
+            - configMapRef: { name: gigpay-config }
+            - secretRef: { name: gigpay-secrets }
+          env:
+            - { name: PORT, value: "8102" }
+            - { name: DB_NAME, value: ledger }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 250m, memory: 512Mi }
+            limits: { memory: 512Mi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ledger-service
+spec:
+  selector: { app: ledger-service }
+  ports: [{ port: 8102, targetPort: http }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: ledger-service
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: ledger-service }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: ledger-service
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: ledger-service }
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 65 }
+---
+
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: coach-service
+  labels: { app: coach-service, tier: app }
+spec:
+  replicas: 2
+  strategy:
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  selector:
+    matchLabels: { app: coach-service }
+  template:
+    metadata:
+      labels: { app: coach-service, tier: app }
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: /actuator/prometheus
+        prometheus.io/port: "8103"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: coach-service
+          image: ghcr.io/your-org/gigpay-coach-service:1.0.0
+          ports: [{ containerPort: 8103, name: http }]
+          envFrom:
+            - configMapRef: { name: gigpay-config }
+            - secretRef: { name: gigpay-secrets }
+          env:
+            - { name: PORT, value: "8103" }
+            - { name: DB_NAME, value: coach }
+            - { name: JAVA_TOOL_OPTIONS, value: "-XX:MaxRAMPercentage=50 -XX:+ExitOnOutOfMemoryError" }
+          startupProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 5
+            failureThreshold: 36
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: http }
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: http }
+            periodSeconds: 10
+          resources:
+            requests: { cpu: 250m, memory: 1Gi }
+            limits: { memory: 1Gi }
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+          volumeMounts:
+            - { name: tmp, mountPath: /tmp }
+      volumes:
+        - name: tmp
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: coach-service
+spec:
+  selector: { app: coach-service }
+  ports: [{ port: 8103, targetPort: http }]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: coach-service
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels: { app: coach-service }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: coach-service
+spec:
+  scaleTargetRef: { apiVersion: apps/v1, kind: Deployment, name: coach-service }
+  minReplicas: 2
+  maxReplicas: 6
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 65 }
